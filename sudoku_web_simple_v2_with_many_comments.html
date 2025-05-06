@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Sudoku</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the Sudoku board */
+        .sudoku-grid {
+            display: grid; /* Sets the display type to grid */
+            grid-template-columns: repeat(9, 1fr); /* Creates 9 columns, each taking up an equal fraction of the available space */
+            grid-template-rows: repeat(9, 1fr); /* Creates 9 rows, each taking up an equal fraction of the available space */
+            gap: 1px; /* Sets the gap between grid items (cells) */
+            border: 3px solid #333; /* Sets a thick dark border around the entire grid */
+            width: 100%; /* Makes the grid take up the full width of its container */
+            max-width: 540px; /* Sets a maximum width for the grid on larger screens */
+            margin: 20px auto; /* Adds 20px margin top/bottom and centers the grid horizontally */
+            aspect-ratio: 1 / 1; /* Keeps the grid square */
+        }
+
+        .sudoku-cell {
+            width: 100%; /* Makes each cell take up the full width of its grid area */
+            height: 100%; /* Makes each cell take up the full height of its grid area */
+            display: flex; /* Uses flexbox to center content within the cell */
+            justify-content: center; /* Centers content horizontally in the flex container */
+            align-items: center; /* Centers content vertically in the flex container */
+            background-color: #fff; /* Sets the background color of the cell to white */
+            border: 1px solid #ccc; /* Sets a light grey border around each cell */
+            font-size: 1.2rem; /* Sets the font size for text inside the cell */
+            font-weight: bold; /* Makes the text bold */
+            color: #333; /* Sets the text color to a dark grey */
+            box-sizing: border-box; /* Includes padding and border in the element's total width and height */
+        }
+
+        .sudoku-cell input {
+            width: 100%; /* Makes the input field take up the full width of its parent cell */
+            height: 100%; /* Makes the input field take up the full height of its parent cell */
+            text-align: center; /* Centers the text inside the input field */
+            border: none; /* Removes the default border of the input field */
+            outline: none; /* Removes the outline when the input field is focused */
+            font-size: 1.2rem; /* Sets the font size for the input text */
+            font-weight: bold; /* Makes the input text bold */
+            color: #007bff; /* Sets the color of the user input text to blue */
+            background-color: transparent; /* Makes the input field background transparent */
+        }
+
+        /* Borders for 3x3 blocks */
+        .sudoku-cell:nth-child(3n) {
+            border-right-width: 3px; /* Sets a thicker right border for every 3rd cell in a row */
+            border-right-color: #333; /* Sets the color of the thicker right border */
+        }
+
+        .sudoku-cell:nth-child(n + 19):nth-child(-n + 27),
+        .sudoku-cell:nth-child(n + 46):nth-child(-n + 54) {
+             border-bottom-width: 3px; /* Sets a thicker bottom border for cells in the 3rd and 6th rows */
+             border-bottom-color: #333; /* Sets the color of the thicker bottom border */
+        }
+
+        /* Remove right border for the last column */
+        .sudoku-cell:nth-child(9n) {
+            border-right-width: 1px; /* Resets the right border width for every 9th cell (last in a row) */
+            border-right-color: #ccc; /* Resets the right border color for every 9th cell */
+        }
+
+        /* Remove bottom border for the last row */
+        .sudoku-grid > :nth-last-child(-n + 9) {
+            border-bottom-width: 1px; /* Resets the bottom border width for the last 9 cells (last row) */
+            border-bottom-color: #ccc; /* Resets the bottom border color for the last 9 cells */
+        }
+
+         /* Specific thicker borders for the 3x3 blocks */
+        .sudoku-grid > :nth-child(n + 1):nth-child(-n + 9) > .sudoku-cell:nth-child(3n + 1),
+        .sudoku-grid > :nth-child(n + 10):nth-child(-n + 18) > .sudoku-cell:nth-child(3n + 1),
+        .sudoku-grid > :nth-child(n + 19):nth-child(-n + 27) > .sudoku-cell:nth-child(3n + 1),
+        .sudoku-grid > :nth-child(n + 28):nth-child(-n + 36) > .sudoku-cell:nth-child(3n + 1),
+        .sudoku-grid > :nth-child(n + 37):nth-child(-n + 45) > .sudoku-cell:nth-child(3n + 1),
+        .sudoku-grid > :nth-child(n + 46):nth-child(-n + 54) > .sudoku-cell:nth-child(3n + 1),
+        .sudoku-grid > :nth-child(n + 55):nth-child(-n + 63) > .sudoku-cell:nth-child(3n + 1),
+        .sudoku-grid > :nth-child(n + 64):nth-child(-n + 72) > .sudoku-cell:nth-child(3n + 1),
+        .sudoku-grid > :nth-child(n + 73):nth-child(-n + 81) > .sudoku-cell:nth-child(3n + 1) {
+             border-left-width: 3px; /* Sets a thicker left border for the first cell in every 3x3 block column */
+             border-left-color: #333; /* Sets the color of the thicker left border */
+        }
+
+
+        /* Specific thicker borders for the 3x3 blocks */
+        .sudoku-grid > :nth-child(n + 1):nth-child(-n + 27) > .sudoku-cell:nth-child(n + 19):nth-child(-n + 27),
+         .sudoku-grid > :nth-child(n + 28):nth-child(-n + 54) > .sudoku-cell:nth-child(n + 19):nth-child(-n + 27),
+         .sudoku-grid > :nth-child(n + 55):nth-child(-n + 81) > .sudoku-cell:nth-child(n + 19):nth-child(-n + 27) {
+             border-bottom-width: 3px; /* Sets a thicker bottom border for the cells in the last row of the top two 3x3 block rows */
+             border-bottom-color: #333; /* Sets the color of the thicker bottom border */
+         }
+
+
+        .prefilled {
+            background-color: #f0f0f0; /* Grey background for pre-filled numbers */
+            color: #333; /* Darker color for pre-filled numbers */
+        }
+
+        .error {
+            background-color: #ffcccc; /* Light red background for errors */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <div class="container mx-auto p-4">
+        <h1 class="text-3xl font-bold text-center mb-8">Simple Sudoku</h1>
+
+        <div id="sudoku-board" class="sudoku-grid">
+            </div>
+
+        <div class="flex justify-center mt-8 space-x-4">
+            <button id="new-game" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow">
+                New Game
+            </button>
+            <button id="check-solution" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded shadow">
+                Check Solution
+            </button>
+        </div>
+
+        <div id="message-box" class="mt-4 text-center text-lg font-semibold">
+            </div>
+    </div>
+
+    <script>
+        const boardElement = document.getElementById('sudoku-board'); // Gets the HTML element with the ID 'sudoku-board' and stores it in a constant.
+        const newGameButton = document.getElementById('new-game'); // Gets the HTML button element with the ID 'new-game'.
+        const checkSolutionButton = document.getElementById('check-solution'); // Gets the HTML button element with the ID 'check-solution'.
+        const messageBox = document.getElementById('message-box'); // Gets the HTML div element with the ID 'message-box'.
+
+        // A simple hardcoded Sudoku puzzle (0 represents empty cells)
+        // In a real game, you would generate puzzles dynamically
+        const puzzle = [ // Defines a 2D array representing the initial Sudoku puzzle. 0 indicates an empty cell.
+            [5, 3, 0, 0, 7, 0, 0, 0, 0],
+            [6, 0, 0, 1, 9, 5, 0, 0, 0],
+            [0, 9, 8, 0, 0, 0, 0, 6, 0],
+            [8, 0, 0, 0, 6, 0, 0, 0, 3],
+            [4, 0, 0, 8, 0, 3, 0, 0, 1],
+            [7, 0, 0, 0, 2, 0, 0, 0, 6],
+            [0, 6, 0, 0, 0, 0, 2, 8, 0],
+            [0, 0, 0, 4, 1, 9, 0, 0, 5],
+            [0, 0, 0, 0, 8, 0, 0, 7, 9]
+        ];
+
+        // The solution for the hardcoded puzzle
+        const solution = [ // Defines a 2D array representing the correct solution for the puzzle.
+            [5, 3, 4, 6, 7, 8, 9, 1, 2],
+            [6, 7, 2, 1, 9, 5, 3, 4, 8],
+            [1, 9, 8, 3, 4, 2, 5, 6, 7],
+            [8, 5, 9, 7, 6, 1, 4, 2, 3],
+            [4, 2, 6, 8, 5, 3, 7, 9, 1],
+            [7, 1, 3, 9, 2, 4, 8, 5, 6],
+            [9, 6, 1, 5, 3, 7, 2, 8, 4],
+            [2, 8, 7, 4, 1, 9, 6, 3, 5],
+            [3, 4, 5, 2, 8, 6, 1, 7, 9]
+        ];
+
+
+        // Function to render the Sudoku board
+        function renderBoard(board) { // Defines a function named renderBoard that takes a board array as an argument.
+            boardElement.innerHTML = ''; // Clears the current content inside the sudoku-board div.
+            for (let r = 0; r < 9; r++) { // Starts a loop iterating through rows (0 to 8).
+                for (let c = 0; c < 9; c++) { // Starts a nested loop iterating through columns (0 to 8).
+                    const cell = document.createElement('div'); // Creates a new div element for each cell.
+                    cell.classList.add('sudoku-cell'); // Adds the 'sudoku-cell' CSS class to the cell div.
+
+                    const value = board[r][c]; // Gets the value from the current row and column of the input board array.
+
+                    if (value !== 0) { // Checks if the cell value is not 0 (meaning it's a pre-filled number).
+                        // Prefilled number
+                        cell.textContent = value; // Sets the text content of the cell div to the value.
+                        cell.classList.add('prefilled'); // Adds the 'prefilled' CSS class for styling.
+                    } else { // If the cell value is 0 (empty).
+                        // Empty cell for user input
+                        const input = document.createElement('input'); // Creates a new input element.
+                        input.type = 'text'; // Sets the input type to text.
+                        input.maxLength = 1; // Limits the input to a single character.
+                        input.dataset.row = r; // Stores the row index as a data attribute on the input.
+                        input.dataset.col = c; // Stores the column index as a data attribute on the input.
+
+                        // Input validation: only allow digits 1-9
+                        input.addEventListener('input', function(e) { // Adds an event listener that fires when the input value changes.
+                            const value = e.target.value; // Gets the current value of the input field.
+                            if (!/^[1-9]$/.test(value) && value !== '') { // Uses a regular expression to check if the value is not a digit 1-9 and not empty.
+                                e.target.value = ''; // If the input is invalid, clear the input field.
+                            }
+                        });
+
+                        cell.appendChild(input); // Appends the created input element to the cell div.
+                    }
+                    boardElement.appendChild(cell); // Appends the cell div to the main sudoku-board element.
+                }
+            }
+        }
+
+        // Function to get the current state of the board from the inputs
+        function getCurrentBoardState() { // Defines a function to get the current state of the board from user inputs.
+            const currentBoard = []; // Initializes an empty array to store the current board state.
+            const inputs = boardElement.querySelectorAll('input'); // Gets all input elements within the sudoku-board.
+            let inputIndex = 0; // Initializes an index to keep track of the current input element.
+            for (let r = 0; r < 9; r++) { // Loops through rows.
+                currentBoard[r] = []; // Initializes an empty array for the current row in currentBoard.
+                for (let c = 0; c < 9; c++) { // Loops through columns.
+                    if (puzzle[r][c] !== 0) { // Checks if the original puzzle had a pre-filled number in this cell.
+                        // Use the prefilled value
+                        currentBoard[r][c] = puzzle[r][c]; // If pre-filled, use the original puzzle value.
+                    } else { // If the original puzzle cell was empty.
+                        // Get value from input, convert to number, or 0 if empty
+                        const value = inputs[inputIndex].value; // Gets the value from the current input element.
+                        currentBoard[r][c] = value === '' ? 0 : parseInt(value, 10); // Converts the input value to an integer (base 10). If empty, sets it to 0.
+                        inputIndex++; // Increments the input index to move to the next input element.
+                    }
+                }
+            }
+            return currentBoard; // Returns the 2D array representing the current board state.
+        }
+
+        // Function to check the current solution
+        function checkSolution() { // Defines a function to check the user's current solution.
+            const currentBoard = getCurrentBoardState(); // Gets the current state of the board from the user's inputs.
+            let errorsFound = false; // Initializes a flag to track if any errors are found.
+
+            // Clear previous error highlighting
+            boardElement.querySelectorAll('.sudoku-cell').forEach(cell => { // Selects all elements with the class 'sudoku-cell'.
+                cell.classList.remove('error'); // Removes the 'error' class from all cells to clear previous highlighting.
+            });
+
+            // Simple check: compare with the hardcoded solution
+            for (let r = 0; r < 9; r++) { // Loops through rows.
+                for (let c = 0; c < 9; c++) { // Loops through columns.
+                    const cellElement = boardElement.children[r * 9 + c]; // Gets the corresponding cell HTML element based on row and column index.
+                    if (currentBoard[r][c] !== 0 && currentBoard[r][c] !== solution[r][c]) { // Checks if the current cell has a value (not 0) and if it doesn't match the solution.
+                        cellElement.classList.add('error'); // If there's an error, add the 'error' CSS class to the cell.
+                        errorsFound = true; // Set the errorsFound flag to true.
+                    }
+                }
+            }
+
+            if (errorsFound) { // Checks if any errors were found.
+                messageBox.textContent = "Errors found. Keep trying!"; // Sets the text content of the message box.
+                messageBox.className = 'mt-4 text-center text-lg font-semibold text-red-600'; // Sets Tailwind classes for styling the error message (red text).
+            } else { // If no errors were found.
+                 // A basic check for completeness (all cells filled)
+                 const allFilled = currentBoard.every(row => row.every(cell => cell !== 0)); // Checks if every cell in every row of the current board is not 0 (i.e., filled).
+                 if (allFilled) { // If all cells are filled and no errors were found.
+                     messageBox.textContent = "Congratulations! Solution is correct!"; // Sets the success message.
+                     messageBox.className = 'mt-4 text-center text-lg font-semibold text-green-600'; // Sets Tailwind classes for styling the success message (green text).
+                 } else { // If no errors were found but the board is not completely filled.
+                      messageBox.textContent = "No errors found yet. Fill in the remaining numbers!"; // Sets a message indicating no errors but incomplete board.
+                      messageBox.className = 'mt-4 text-center text-lg font-semibold text-blue-600'; // Sets Tailwind classes for styling this message (blue text).
+                 }
+            }
+        }
+
+        // Event listeners
+        newGameButton.addEventListener('click', () => { // Adds an event listener to the 'New Game' button that triggers when clicked.
+            renderBoard(puzzle); // Calls the renderBoard function with the initial puzzle to reset the game.
+            messageBox.textContent = ''; // Clears the text content of the message box.
+             messageBox.className = 'mt-4 text-center text-lg font-semibold'; // Resets the Tailwind classes on the message box to the default.
+        });
+
+        checkSolutionButton.addEventListener('click', checkSolution); // Adds an event listener to the 'Check Solution' button that triggers the checkSolution function when clicked.
+
+        // Initial render of the board when the page loads
+        renderBoard(puzzle); // Calls renderBoard with the initial puzzle when the script first runs (page loads).
+
+    </script>
+
+</body>
+</html>
